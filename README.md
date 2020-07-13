@@ -17,13 +17,13 @@ Thank you, **[ildoonet](https://github.com/ildoonet)**.
 I will make his implementation even faster with CPU only.  
 
 ## Environment
-- Ubuntu 16.04 x86_64
+- ~~Ubuntu 16.04 x86_64~~ Ubuntu 18.04 x86_64
 - **[OpenVINO 2019 R1.0.1](https://github.com/PINTO0309/OpenVINO-bin.git)**
-- **[Tensorflow v1.12.0 + Tensorflow Lite](https://github.com/PINTO0309/Tensorflow-bin.git)**
+- **[~~Tensorflow v1.12.0~~ Tensorflow v1.15.3 + Tensorflow Lite](https://github.com/PINTO0309/Tensorflow-bin.git)**
 - USB Camera
 - Neural Compute Stick 2 (NCS2)
 - Google Edge TPU
-- Python 3.5
+- ~~Python 3.5~~ Python 3.7.6
 
 ## Environment construction and training procedure
 **[Learn "Openpose" from scratch with MobileNetv2 + MS-COCO and deploy it to OpenVINO/TensorflowLite Part.1](https://qiita.com/PINTO/items/2316882e18715c6f138c)**  
