@@ -1,86 +1,49 @@
-
-# MobileNetV2-PoseEstimation
-
-Fall Detection model based on https://github.com/PINTO0309/MobileNetV2-PoseEstimation
-
-**[Caution] The behavior of RraspberryPi+NCS2 is very unstable.**  
-**[Caution] The behavior of Tensorflow Lite+CPU is unstable.**  
-**[Caution] May 06, 2019, The Google Edge TPU program and model are under construction.**  
-**[Info] Jun 08, 2020, I'm tuning the performance of the Tensorflow Lite model significantly. https://github.com/PINTO0309/PINTO_model_zoo/tree/master/07_mobilenetv2-poseestimation**  
-
+# Fall Detection using Pose Estimation
 
 ## Introduction
-This repository has its own implementation, impressed by ildoonet's achievements.  
-Thank you, **[ildoonet](https://github.com/ildoonet)**.  
-**https://github.com/ildoonet/tf-pose-estimation.git**  
-  
-I will make his implementation even faster with CPU only.  
+Fall Detection model based on a lightweight Pose Estimation model:
+
+https://github.com/PINTO0309/MobileNetV2-PoseEstimation
+
+The model used is MobileNetV2 with OpenVINO.
+
+The detection runs on CPU only, but can be combined with a Neural Compute Stick 2 (NCS2).
 
 ## Environment
-- ~~Ubuntu 16.04 x86_64~~ Ubuntu 18.04 x86_64
-- **[OpenVINO 2019 R1.0.1](https://github.com/PINTO0309/OpenVINO-bin.git)**
-- **[~~Tensorflow v1.12.0~~ Tensorflow v1.15.3 + Tensorflow Lite](https://github.com/PINTO0309/Tensorflow-bin.git)**
+
+- Ubuntu 18.04 x86_64
+- OpenVINO 2019 R1.0.1
 - USB Camera
 - Neural Compute Stick 2 (NCS2)
 - Google Edge TPU
-- ~~Python 3.5~~ Python 3.7.6
-
-## Environment construction and training procedure
-**[Learn "Openpose" from scratch with MobileNetv2 + MS-COCO and deploy it to OpenVINO/TensorflowLite Part.1](https://qiita.com/PINTO/items/2316882e18715c6f138c)**  
-  
-**[Learn "Openpose" from scratch with MobileNetv2 + MS-COCO and deploy it to OpenVINO/TensorflowLite (Inference by OpenVINO/NCS2) Part.2](https://qiita.com/PINTO/items/c1889317bc16534a75cf)**
-
-## Core i7 only + OpenVINO + Openpose Large model + Sync mode (disabled GPU)
-![01](media/01.gif)  
-## NCS2 x1 + OpenVINO + Openpose Large model + Async + Normal mode
-![02](media/02.gif)  
-## Core i7 only + OpenVINO + Openpose Small model + Sync + Boost mode (disabled GPU)
-![03](media/03.gif)  
-## NCS2 x1 + OpenVINO + Openpose Small model + Async + Boost mode
-![04](media/04.gif)  
+- Python 3.7.6
 
 ## Usage
 ```console
-$ git clone https://github.com/PINTO0309/MobileNetV2-PoseEstimation.git
-$ cd MobileNetV2-PoseEstimation
+$ git clone https://github.com/cwlroda/falldetection.git
+$ cd falldetection
 ```
-**CPU - Sync Mode**  
+**With Threading (image output only)**
+```console
+$ python3 main.py -v {VIDEO_PATH}
+```
+**CPU - Sync Mode (webcam)**  
 ```console
 $ python3 openvino-usbcamera-cpu-ncs2-sync.py -d CPU
 ```
-**CPU - Sync + Boost Mode**  
+**CPU - Sync + Boost Mode (webcam)**  
 ```console
 $ python3 openvino-usbcamera-cpu-ncs2-sync.py -d CPU -b True
 ```
-**NCS2 - Sync Mode**  
+**Help Mode**
 ```console
-$ python3 openvino-usbcamera-cpu-ncs2-sync.py -d MYRIAD
+$ python3 main.py --help
+
+OR
+
+$ python3 openvino-usbcamera-cpu-ncs2-sync.py --help
 ```
-  
-**CPU - Async Mode**  
-```console
-$ python3 openvino-usbcamera-cpu-ncs2-async.py -d CPU
-```
-**NCS2 - Async - Single Stick Mode**  
-```console
-$ python3 openvino-usbcamera-cpu-ncs2-async.py -d MYRIAD
-```
-**NCS2 - Async - Multi Stick Mode**  
-```console
-$ python3 openvino-usbcamera-cpu-ncs2-async.py -d MYRIAD -numncs 2
-```
-**NCS2 - Async - Single Stick + Boost Mode**  
-```console
-$ python3 openvino-usbcamera-cpu-ncs2-async.py -d MYRIAD -b True
-```
-**GPU (Intel HD series only) - Async - Boost Mode**  
-```console
-$ python3 openvino-usbcamera-cpu-ncs2-async.py -d GPU -b True
-```
-## Reference articles, Very Thanks!!
-**https://github.com/ildoonet/tf-pose-estimation.git**  
-**https://www.tensorflow.org/api_docs/python/tf/image/resize_area**  
-**[Python OpenCVの基礎 resieで画像サイズを変えてみる - Pythonの学習の過程とか - ピーハイ](http://peaceandhilightandpython.hatenablog.com/entry/2016/01/09/214333)**  
-**[Blurring and Smoothing - OpenCV with Python for Image and Video Analysis 8](https://youtu.be/sARklx6sgDk?t=228)**  
-**https://www.learnopencv.com/deep-learning-based-human-pose-estimation-using-opencv-cpp-python/**  
-**https://teratail.com/questions/169393**  
+
+## Future Plans
+1. Model retraining for improved accuracy
+2. Compatibility with RTSP stream
