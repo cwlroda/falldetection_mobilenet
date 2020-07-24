@@ -12,10 +12,6 @@ import argparse
 import platform
 import warnings
 import pafy
-import multiprocessing as mp
-from multiprocessing import Queue as pQueue
-from threading import Thread
-from queue import Queue, LifoQueue
 
 try:
     from armv7l.openvino.inference_engine import IECore, IEPlugin
