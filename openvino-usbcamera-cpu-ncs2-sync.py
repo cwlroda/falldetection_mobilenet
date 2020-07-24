@@ -11,6 +11,12 @@ import re
 import argparse
 import platform
 import warnings
+import pafy
+import multiprocessing as mp
+from multiprocessing import Queue as pQueue
+from threading import Thread
+from queue import Queue, LifoQueue
+
 try:
     from armv7l.openvino.inference_engine import IECore, IEPlugin
 except:
@@ -18,7 +24,7 @@ except:
     
 warnings.filterwarnings("ignore")
 
-def getKeypoints(probMap, threshold=0.1):
+def getKeypoints():
 
     mapSmooth = cv2.GaussianBlur(probMap, (3, 3), 0, 0)
     mapMask = np.uint8(mapSmooth>threshold)
@@ -41,12 +47,12 @@ def getKeypoints(probMap, threshold=0.1):
     return keypoints
 
 
-def getValidPairs(outputs, w, h):
+def getValidPairs():
     valid_pairs = []
     invalid_pairs = []
     n_interp_samples = 10
     paf_score_th = 0.1
-    conf_th = 0.7
+    conf_th = 0.5
 
     for k in range(len(mapIdx)):
         pafA = outputs[0, mapIdx[k][0], :, :]
@@ -82,7 +88,7 @@ def getValidPairs(outputs, w, h):
                     paf_scores = np.dot(paf_interp, d_ij)
                     avg_paf_score = sum(paf_scores)/len(paf_scores)
 
-                    if ( len(np.where(paf_scores > paf_score_th)[0]) / n_interp_samples ) > conf_th :
+                    if (len(np.where(paf_scores > paf_score_th)[0])/n_interp_samples) > conf_th :
                         if avg_paf_score > maxScore:
                             max_j = j
                             maxScore = avg_paf_score
@@ -97,7 +103,7 @@ def getValidPairs(outputs, w, h):
     return valid_pairs, invalid_pairs
 
 
-def getPersonwiseKeypoints(valid_pairs, invalid_pairs):
+def getPersonwiseKeypoints():
     personwiseKeypoints = -1 * np.ones((0, 19))
 
     for k in range(len(mapIdx)):
@@ -126,199 +132,216 @@ def getPersonwiseKeypoints(valid_pairs, invalid_pairs):
                     row[-1] = sum(keypoints_list[valid_pairs[k][i,:2].astype(int), 2]) + valid_pairs[k][i][2]
                     personwiseKeypoints = np.vstack([personwiseKeypoints, row])
                     
-    # print(personwiseKeypoints)
     return personwiseKeypoints
 
 
-fps = ""
-detectfps = ""
-framecount = 0
-totalframecount = 0
-time1 = 0
+if __name__ == "__main__":
+    camera_width = 1080
+    camera_height = 720
 
-camera_width = 1080
-camera_height = 720
+    keypointsMapping = ['Nose', 'Neck', 'R-Sho', 'R-Elb', 'R-Wr', 'L-Sho', 'L-Elb', 'L-Wr', 'R-Hip', 'R-Knee', 'R-Ank', 'L-Hip', 'L-Knee', 'L-Ank', 'R-Eye', 'L-Eye', 'R-Ear', 'L-Ear']
+    POSE_PAIRS = [[1,2], [1,5], [2,3], [3,4], [5,6], [6,7], [1,8], [8,9], [9,10], [1,11], [11,12], [12,13], [1,0], [0,14], [14,16], [0,15], [15,17], [2,17], [5,16]]
+    mapIdx = [[31,32], [39,40], [33,34], [35,36], [41,42], [43,44], [19,20], [21,22], [23,24], [25,26], [27,28], [29,30], [47,48], [49,50], [53,54], [51,52], [55,56], [37,38], [45,46]]
+    colors = [[0,100,255], [0,100,255], [0,255,255], [0,100,255], [0,255,255], [0,100,255], [0,255,0], [255,200,100], [255,0,255], [0,255,0], [255,200,100], [255,0,255], [0,0,255], [255,0,0], [200,200,0], [255,0,0], [200,200,0], [0,0,0]]
 
-keypointsMapping = ['Nose', 'Neck', 'R-Sho', 'R-Elb', 'R-Wr', 'L-Sho', 'L-Elb', 'L-Wr', 'R-Hip', 'R-Knee', 'R-Ank', 'L-Hip', 'L-Knee', 'L-Ank', 'R-Eye', 'L-Eye', 'R-Ear', 'L-Ear']
-POSE_PAIRS = [[1,2], [1,5], [2,3], [3,4], [5,6], [6,7], [1,8], [8,9], [9,10], [1,11], [11,12], [12,13], [1,0], [0,14], [14,16], [0,15], [15,17], [2,17], [5,16]]
-mapIdx = [[31,32], [39,40], [33,34], [35,36], [41,42], [43,44], [19,20], [21,22], [23,24], [25,26], [27,28], [29,30], [47,48], [49,50], [53,54], [51,52], [55,56], [37,38], [45,46]]
-colors = [[0,100,255], [0,100,255], [0,255,255], [0,100,255], [0,255,255], [0,100,255], [0,255,0], [255,200,100], [255,0,255], [0,255,0], [255,200,100], [255,0,255], [0,0,255], [255,0,0], [200,200,0], [255,0,0], [200,200,0], [0,0,0]]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--device", help="Specify the target device to infer on; CPU, GPU, MYRIAD is acceptable. (Default=CPU)", default="CPU", type=str)
+    parser.add_argument("-b", "--boost", help="Setting it to True will make it run faster instead of sacrificing accuracy. (Default=False)", default=False, type=bool)
+    # parser.add_argument("-m", "--mode", help="Mode 0: Pose tracking. Mode 1: Fall detection. (Default=0)", default=0, type=int)
+    parser.add_argument("-v", "--video", help="Specify video file, if any, to perform pose estimation (Default=Webcam)", default='webcam', type=str)
+    parser.add_argument("-o", "--output_dir", help="Specify output directory. (Default=\{CURR_DIR\}/output/)", default="output", type=str)
+    args = parser.parse_args()
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-d", "--device", help="Specify the target device to infer on; CPU, GPU, MYRIAD is acceptable. (Default=CPU)", default="CPU", type=str)
-parser.add_argument("-b", "--boost", help="Setting it to True will make it run faster instead of sacrificing accuracy. (Default=False)", default=False, type=bool)
-parser.add_argument("-m", "--mode", help="Mode 0: Pose tracking. Mode 1: Fall detection. (Default=0)", default=0, type=int)
-parser.add_argument("-v", "--video", help="Specify video file, if any, to perform pose estimation (Default=Webcam)", default='webcam', type=str)
-parser.add_argument("-o", "--output_dir", help="Specify output directory. (Default=\{CURR_DIR\}/output/)", default="output", type=str)
-args = parser.parse_args()
+    if "webcam" == args.video:
+        try:
+            cap = cv2.VideoCapture(-1)
+        except:
+            print("Camera not found. Is your camera set up properly?")
+            sys.exit(0)
+            
+    elif "livefeed" == args.video:
+        try:
+            url = input()
+            video = pafy.new(url)
+            best = video.getbest(preftype="mp4")
+            
+            cap = cv2.VideoCapture()
+            cap.open(best.url)
+        except:
+            print("URL not found. Is the link provided correct?")
+            sys.exit(0)
+            
+    else:
+        try:
+            cap = cv2.VideoCapture(args.video)
+        except:
+            print("Video file not found. Did you specify the correct path?")
+            sys.exit(0)
+    
+    # Save output video
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(args.output_dir+'/output.mp4', fourcc, 60, (432, 368))
+    
+    fps = ""
+    detectfps = ""
+    framecount = 0
+    totalframecount = 0
+    time1 = 0
+    
+    plugin = IEPlugin(device=args.device)
 
-if "webcam" == args.video:
-    try:
-        cap = cv2.VideoCapture(-1)
-    except:
-        print("Video file not found. Did you specify the correct path?")
+    # TO-DO: Try another model to compare accuracy
+    if "CPU" == args.device:
+        if platform.processor() == "x86_64":
+            plugin.add_cpu_extension("lib/libcpu_extension.so")
+        if args.boost == False:
+            model_xml = "models/train/test/openvino/mobilenet_v2_1.4_224/FP32/frozen-model.xml"
+        else:
+            model_xml = "models/train/test/openvino/mobilenet_v2_0.5_224/FP32/frozen-model.xml"
+
+    elif "GPU" == args.device or "MYRIAD" == args.device:
+        if args.boost == False:
+            model_xml = "models/train/test/openvino/mobilenet_v2_1.4_224/FP16/frozen-model.xml"
+        else:
+            model_xml = "models/train/test/openvino/mobilenet_v2_0.5_224/FP16/frozen-model.xml"
+
+    else:
+        print("Specify the target device to infer on; CPU, GPU, MYRIAD is acceptable.")
         sys.exit(0)
-else:
-    cap = cv2.VideoCapture(args.video)
 
-cap.set(cv2.CAP_PROP_FPS, 30)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, camera_width)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, camera_height)
+    # mode = args.mode
 
-fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-out = cv2.VideoWriter(args.output_dir+'/output.mp4', fourcc, 25, (432, 368))
+    # TO-DO: Understand the parameters and how the model loading works
+    model_bin = os.path.splitext(model_xml)[0] + ".bin"
+    net = IECore().read_network(model=model_xml, weights=model_bin)
+    input_blob = next(iter(net.inputs))
+    exec_net = IECore().load_network(network=net, device_name=args.device)
+    inputs = net.inputs["image"]
 
-plugin = IEPlugin(device=args.device)
+    h = inputs.shape[2] #368
+    w = inputs.shape[3] #432
+    print(h, w)
 
-if "CPU" == args.device:
-    if platform.processor() == "x86_64":
-        plugin.add_cpu_extension("lib/libcpu_extension.so")
-    if args.boost == False:
-        model_xml = "models/train/test/openvino/mobilenet_v2_1.4_224/FP32/frozen-model.xml"
-    else:
-        model_xml = "models/train/test/openvino/mobilenet_v2_0.5_224/FP32/frozen-model.xml"
+    threshold = 0.3
+    nPoints = 18
 
-elif "GPU" == args.device or "MYRIAD" == args.device:
-    if args.boost == False:
-        model_xml = "models/train/test/openvino/mobilenet_v2_1.4_224/FP16/frozen-model.xml"
-    else:
-        model_xml = "models/train/test/openvino/mobilenet_v2_0.5_224/FP16/frozen-model.xml"
+    # TO-DO: Implement dynamic matrix with person tracking
+    old_neck = -1*np.ones(20, dtype=int)
+    new_neck = -1*np.ones(20, dtype=int)
+    subject_height = -1*np.ones(20, dtype=int)
+    fall_ratio = 0.5
+    fallcount = 0
+    
+    try:
+        while True:
+            t1 = time.perf_counter()
 
-else:
-    print("Specify the target device to infer on; CPU, GPU, MYRIAD is acceptable.")
-    sys.exit(0)
+            ret, color_image = cap.read()
+            if not ret:
+                break
 
-mode = args.mode
+            # TO-DO: Resize output screen?
+            colw = color_image.shape[1]
+            colh = color_image.shape[0]
+            new_w = int(colw * min(w/colw, h/colh))
+            new_h = int(colh * min(w/colw, h/colh))
 
-model_bin = os.path.splitext(model_xml)[0] + ".bin"
-net = IECore().read_network(model=model_xml, weights=model_bin)
-input_blob = next(iter(net.inputs))
-exec_net = IECore().load_network(network=net, device_name=args.device)
-inputs = net.inputs["image"]
+            resized_image = cv2.resize(color_image, (w, new_h), interpolation = cv2.INTER_NEAREST)
+            canvas = np.full((h, w, 3), 128)
+            canvas[(h - new_h)//2:(h - new_h)//2 + new_h,(w - new_w)//2:(w - new_w)//2 + new_w, :] = resized_image
 
-h = inputs.shape[2] #368
-w = inputs.shape[3] #432
+            prepimg = canvas
+            prepimg = prepimg[np.newaxis, :, :, :]     # Batch size axis add
+            prepimg = prepimg.transpose((0, 3, 1, 2))  # NHWC to NCHW, (1, 3, 368, 432)
+            outputs = exec_net.infer(inputs={input_blob: prepimg})["Openpose/concat_stage7"]
 
-threshold = 0.1
-nPoints = 18
-
-old_neck = -1;
-new_neck = -1;
-fallcount = 0;
-
-try:
-
-    while True:
-        t1 = time.perf_counter()
-
-        ret, color_image = cap.read()
-        if not ret:
-            break
-
-        colw = color_image.shape[1]
-        colh = color_image.shape[0]
-        new_w = int(colw * min(w/colw, h/colh))
-        new_h = int(colh * min(w/colw, h/colh))
-
-        resized_image = cv2.resize(color_image, (w, new_h), interpolation = cv2.INTER_CUBIC)
-        canvas = np.full((h, w, 3), 128)
-        canvas[(h - new_h)//2:(h - new_h)//2 + new_h,(w - new_w)//2:(w - new_w)//2 + new_w, :] = resized_image
-
-        prepimg = canvas
-        prepimg = prepimg[np.newaxis, :, :, :]     # Batch size axis add
-        prepimg = prepimg.transpose((0, 3, 1, 2))  # NHWC to NCHW, (1, 3, 368, 432)
-        outputs = exec_net.infer(inputs={input_blob: prepimg})["Openpose/concat_stage7"]
-
-        detected_keypoints = []
-        keypoints_list = np.zeros((0, 3))
-        keypoint_id = 0
-
-        for part in range(nPoints):
-            probMap = outputs[0, part, :, :]
-            probMap = cv2.resize(probMap, (canvas.shape[1], canvas.shape[0])) # (432, 368)
-            keypoints = getKeypoints(probMap, threshold)
-            keypoints_with_id = []
-
-            for i in range(len(keypoints)):
-                keypoints_with_id.append(keypoints[i] + (keypoint_id,))
-                keypoints_list = np.vstack([keypoints_list, keypoints[i]])
-                keypoint_id += 1
-
-            detected_keypoints.append(keypoints_with_id)
-
-        frameClone = np.uint8(canvas.copy())
-        for i in range(nPoints):
-            for j in range(len(detected_keypoints[i])):
-                cv2.circle(frameClone, detected_keypoints[i][j][0:2], 5, colors[i], -1, cv2.LINE_AA)
-
-        valid_pairs, invalid_pairs = getValidPairs(outputs, w, h)
-        personwiseKeypoints = getPersonwiseKeypoints(valid_pairs, invalid_pairs)
-
-        for n in range(len(personwiseKeypoints)):
-            for i in range(17):
-                index = personwiseKeypoints[n][np.array(POSE_PAIRS[i])]
-                if -1 in index:
-                    continue
-                B = np.int32(keypoints_list[index.astype(int), 0])
-                A = np.int32(keypoints_list[index.astype(int), 1])
-                cv2.line(frameClone, (B[0], A[0]), (B[1], A[1]), colors[i], 3, cv2.LINE_AA)
-                
-                # TO-DO: Get person height from neck and right ankle points
-                # TO-DO: Determine fall distance ratio
-                # TO-DO: Test fall detection algorithm on multiple people
-                
-                # Detect falling from neck points
-                if i == 0:
-                    # print(A[0])
-                    new_neck = A[0]
-                
-                    if totalframecount != 0 and totalframecount % 10 == 0:
-                        # print(new_neck-old_neck)
-                        if (new_neck-old_neck) >= 25 and new_neck != -1 and old_neck != -1:
-                            fallcount += 1;
-                            print("Fall detected")
-                            print(fallcount)
-                
-                        old_neck = new_neck
-                        
-        if fallcount != 0:
-            cv2.putText(frameClone, "FALL DETECTED!", (w-170,35), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (38,0,255), 1, cv2.LINE_AA)
-
-        cv2.putText(frameClone, fps, (w-170,15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (38,0,255), 1, cv2.LINE_AA)
-        out.write(frameClone)
-        cv2.namedWindow("USB Camera", cv2.WINDOW_AUTOSIZE)
-        cv2.imshow("USB Camera", frameClone)
-        out.write(frameClone)
-        
-        firstframe = False
+            detected_keypoints = []
+            keypoints_list = np.zeros((0, 3))
+            keypoint_id = 0
             
-        ''' if fallcount != 0:
-            k = cv2.waitKey(0)
+            for part in range(nPoints):
+                probMap = outputs[0, part, :, :]
+                probMap = cv2.resize(probMap, (canvas.shape[1], canvas.shape[0])) # (432, 368)
+                keypoints = getKeypoints()
+                keypoints_with_id = []
+
+                for i in range(len(keypoints)):
+                    keypoints_with_id.append(keypoints[i] + (keypoint_id,))
+                    keypoints_list = np.vstack([keypoints_list, keypoints[i]])
+                    keypoint_id += 1
+
+                detected_keypoints.append(keypoints_with_id)
+
+            frameClone = np.uint8(canvas.copy())
+            for i in range(nPoints):
+                for j in range(len(detected_keypoints[i])):
+                    cv2.circle(frameClone, detected_keypoints[i][j][0:2], 5, colors[i], -1, cv2.LINE_AA)
+
+            valid_pairs, invalid_pairs = getValidPairs()
+            personwiseKeypoints = getPersonwiseKeypoints()
             
-            if k == 113:
-                break '''
+            # Resets points if no one is detected in the frame to prevent false positives between frames
+            if range(len(personwiseKeypoints)) == 0:
+                old_neck = -1*np.ones(20, dtype=int)
+                new_neck = -1*np.ones(20, dtype=int)
+                subject_height = -1*np.ones(20, dtype=int)
 
-        if cv2.waitKey(1)&0xFF == ord('q'):
-            break
+            # Fall algorithm
+            # TO-DO: Optimise loops (multithreading?)
+            for n in range(len(personwiseKeypoints)):
+                for i in range(18):
+                    index = personwiseKeypoints[n][np.array(POSE_PAIRS[i])]
+                    
+                    if -1 in index:
+                        continue
+                    
+                    B = np.int32(keypoints_list[index.astype(int), 0])
+                    A = np.int32(keypoints_list[index.astype(int), 1])
+                    cv2.line(frameClone, (B[0], A[0]), (B[1], A[1]), colors[i], 3, cv2.LINE_AA)
+                    
+                    # Detect falling from neck points
+                    if i == 0:
+                        new_neck[n] = A[0]  
+                    if i == 8:
+                        subject_height[n] = A[0]-new_neck[n]
+                    
+                if totalframecount != 0 and totalframecount % 10 == 0:
+                    if ((new_neck[n]-old_neck[n]) > subject_height[n]*fall_ratio) and new_neck[n] != -1 and old_neck[n] != -1 and subject_height[n] != -1:
+                        fallcount += 1
+                        cv2.imwrite(args.output_dir+'/img/'+str(fallcount)+'.jpg', frameClone)
+            
+                    old_neck[n] = new_neck[n]
 
-        # FPS calculation
-        framecount += 1
-        totalframecount += 1
-        if framecount >= 15:
-            fps = "(Playback) {:.1f} FPS".format(time1/15)
-            framecount = 0
-            time1 = 0
-        t2 = time.perf_counter()
-        elapsedTime = t2-t1
-        time1 += 1/elapsedTime
+            if fallcount != 0:
+                cv2.putText(frameClone, "FALL COUNT: {0}".format(fallcount), (w-170,35), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (38,0,255), 1, cv2.LINE_AA)
+                
+            cv2.putText(frameClone, fps, (w-170,15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (38,0,255), 1, cv2.LINE_AA)
+            out.write(frameClone)
+            cv2.namedWindow("USB Camera", cv2.WINDOW_AUTOSIZE)
+            cv2.imshow("USB Camera", frameClone)
+            out.write(frameClone)
 
-except:
-    import traceback
-    traceback.print_exc()
+            if cv2.waitKey(1)&0xFF == ord('q'):
+                break
 
-finally:
-    cv2.destroyAllWindows()
-    cap.release()
-    out.release()
-    print("\n\nFinished\n\n")
+            # FPS calculation
+            framecount += 1
+            totalframecount += 1
+            if framecount >= 15:
+                fps = "(Playback) {:.1f} FPS".format(time1/15)
+                framecount = 0
+                time1 = 0
+            t2 = time.perf_counter()
+            elapsedTime = t2-t1
+            time1 += 1/elapsedTime
 
+    except:
+        import traceback
+        traceback.print_exc()
+
+    finally:
+        cv2.destroyAllWindows()
+        cap.release()
+        out.release()
+        print("\n\nFinished\n\n")
+    
