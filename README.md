@@ -46,4 +46,5 @@ $ python3 openvino-usbcamera-cpu-ncs2-sync.py --help
 
 ## Future Plans
 1. Model retraining for improved accuracy
-2. Compatibility with RTSP stream
+2. Compatibility with multiple RTSP streams
+

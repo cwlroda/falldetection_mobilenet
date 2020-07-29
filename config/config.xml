@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <Source>
+        <RTSPAPI>
+            <StaticRTSPURL>http://multimedia.stargazette.com/webcasts/weather/webcast.mov</StaticRTSPURL>
+            <URL></URL>
+        </RTSPAPI>
+        <RTSPAPI>
+            <StaticRTSPURL>http://multimedia.stargazette.com/webcasts/weather/webcast.mov</StaticRTSPURL>
+            <URL></URL>
+        </RTSPAPI>
+    </Source>
+    <Output>
+        <FileOutput>
+            <Dir>/output/</Dir>
+            <FileName>{yyyymmdd}_{HHMMSS}_{streamID}_{fallcount}.jpg</FileName>
+        </FileOutput>
+    </Output>
+</config>
