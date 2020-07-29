@@ -14,7 +14,6 @@ The detection runs on CPU only, but can be combined with a Neural Compute Stick 
 - Ubuntu 18.04 x86_64
 - OpenVINO 2019 R1.0.1
 - USB Camera
-- Neural Compute Stick 2 (NCS2)
 - Google Edge TPU
 - Python 3.7.6
 
@@ -47,4 +46,4 @@ $ python3 openvino-usbcamera-cpu-ncs2-sync.py --help
 ## Future Plans
 1. Model retraining for improved accuracy
 2. Compatibility with multiple RTSP streams
-
+3. Compatibility with Neural Compute Stick 2 (NCS2)
