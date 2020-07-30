@@ -2,12 +2,10 @@
 <config>
     <Source>
         <RTSPAPI>
-            <StaticRTSPURL>http://multimedia.stargazette.com/webcasts/weather/webcast.mov</StaticRTSPURL>
-            <URL></URL>
+            <RTSPURL>http://multimedia.stargazette.com/webcasts/weather/webcast.mov</RTSPURL>
         </RTSPAPI>
         <RTSPAPI>
-            <StaticRTSPURL>http://multimedia.stargazette.com/webcasts/weather/webcast.mov</StaticRTSPURL>
-            <URL></URL>
+            <RTSPURL>http://multimedia.stargazette.com/webcasts/weather/webcast.mov</RTSPURL>
         </RTSPAPI>
     </Source>
     <Output>

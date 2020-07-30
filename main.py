@@ -1,12 +1,13 @@
 import os
+import sys
 
 from config.configparser import ConfigParser
 from core.dataloader import DataLoader
-from core.multistreamloader import MultistreamLoader
+from core.multistreamloader import MultiStreamLoader
+
+configFile = "config/config.xml"
 
 try:
-    configFile = "config/config.xml"
-    
     # load detection model
     model = DataLoader()
     
@@ -15,5 +16,17 @@ try:
     
     # load image writer
     
-    # generate RTSP streams
     
+    # generate RTSP streams
+    streams = MultiStreamLoader(model, config['RTSPAPI'])
+    streams.loadStreams()
+    
+except:
+    import traceback
+    traceback.print_exc()   
+
+finally:
+    print("Finished")
+    sys.exit(0)
+        
+        

@@ -15,7 +15,7 @@ class ConfigParser:
     def getDictValue(self, dict, keyName):
         return dict[keyName]
     
-    def extractConfig(self):
+    def extractConfig(self, configItemName):
         configItemList = []
         doc = xmltodict.parse(open(self.configFile).read())
         
@@ -25,7 +25,7 @@ class ConfigParser:
         for path in pathItems:
             refDict = self.getDictValue(refDict, path)
         
-        if isinstance(refDict. list):
+        if isinstance(refDict, list):
             configItemList = refDict
         else:
             configItemList.append(refDict)

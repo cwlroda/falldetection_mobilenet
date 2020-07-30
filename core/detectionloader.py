@@ -220,7 +220,7 @@ class DetectionLoader:
                         self.subject_height[n] = A[0] - self.new_neck[n]
                     
                 if self.totalframecount != 0 and self.totalframecount % 10 == 0:
-                    if ((self.new_neck[n] - self.old_neck[n]) > self.subject_height[n]*self.fall_ratio) and self.new_neck[n] != -1 and self.old_neck[n] != -1 and self.subject_height[n] != -1:
+                    if ((self.new_neck[n] - self.old_neck[n]) > (self.subject_height[n] * self.fall_ratio)) and self.new_neck[n] > 0 and self.old_neck[n] > 0 and self.subject_height[n] > 0:
                         self.fallcount += 1
                         print("Fall detected")
                         cv2.imwrite('output/img/'+str(self.fallcount)+'.jpg', self.frameClone)

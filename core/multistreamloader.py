@@ -8,10 +8,10 @@ import numpy as np
 import argparse
 from queue import Queue, LifoQueue
 
-from videoloader import VideoLoader
-from detectionloader import DetectionLoader
+from core.videoloader import VideoLoader
+from core.detectionloader import DetectionLoader
 
-os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
+''' os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
 
 camera_width = 1080
 camera_height = 720
@@ -30,6 +30,8 @@ fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter('output/output.mp4', fourcc, 30, (432, 368))
     
 try:    
+    model = DataLoader()
+    
     t1 = time.perf_counter()
     
     data = VideoLoader(args.video, batchSize=1, queueSize=0)
@@ -45,16 +47,15 @@ try:
         if frame is None:
             break
         
-        ''' cv2.namedWindow("USB Camera", cv2.WINDOW_AUTOSIZE)
+        cv2.namedWindow("USB Camera", cv2.WINDOW_AUTOSIZE)
         cv2.imshow("USB Camera", frame)
         out.write(frame)
         
         if cv2.waitKey(30)&0xFF == ord('q'):
-            break '''
+            break
     
     elapsedTime = t2-t1
     print("Time elapsed: " + str(elapsedTime))
-    
 
 except:
     import traceback
@@ -64,14 +65,49 @@ finally:
     cv2.destroyAllWindows()
     out.release()
     print("Finished")
+    sys.exit(0) '''
     
     
 class MultiStreamLoader:
-    def __init__(self, model):
+    def __init__(self, model, RTSP_list):
         self.model = model
+        self.RTSP_list = RTSP_list
         self.streams = []
         
     def loadStreams(self):
-        pass
+        for dict in self.RTSP_list:
+            ref_RTSPHandler = None
+            str_RTSPURL = None
+            
+            if "RTSPURL" in dict:
+                str_RTSPURL = dict["RTSPURL"]
+            print("Running "+str_RTSPURL)
+            
+            ref_RTSPHandler = RTSPHandler(self.model, dict, str_RTSPURL)
+            
+            self.streams.append(ref_RTSPHandler)
+            print("Finished "+str_RTSPURL)
+        
+        return self.streams
     
+
+class RTSPHandler:
+    def __init__(self, model, dict, RTSPURL=None):
+        self.model = model
+        self.RTSPdict = dict
+        self.RTSPURL = RTSPURL
+        
+        try:
+            self.data = VideoLoader(self.RTSPURL, batchSize=1, queueSize=0)
+            self.data.start()
+        except:
+            import traceback
+            traceback.print_exc()
     
+    def start(self):
+        try:
+            detection = DetectionLoader(model, data, queueSize=0)
+            detection.start()
+        except:
+            import traceback
+            traceback.print_exc()
