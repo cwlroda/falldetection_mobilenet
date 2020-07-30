@@ -13,14 +13,18 @@ The detection runs on CPU only, but can be combined with a Neural Compute Stick 
 
 - Ubuntu 18.04 x86_64
 - OpenVINO 2019 R1.0.1
-- USB Camera
-- Google Edge TPU
 - Python 3.7.6
+- USB Camera/Video/RTSP Stream
+
 
 ## Usage
 ```console
 $ git clone https://github.com/cwlroda/falldetection.git
 $ cd falldetection
+```
+**Multiple RTSP Streams**
+```console
+$ python3 main.py
 ```
 **With Threading (image output only)**
 ```console
