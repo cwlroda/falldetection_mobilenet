@@ -86,7 +86,7 @@ class MultiStreamLoader:
             ref_RTSPHandler = RTSPHandler(self.model, dict, str_RTSPURL)
             
             self.streams.append(ref_RTSPHandler)
-            print("Finished "+str_RTSPURL)
+            print("Finished " + str_RTSPURL)
         
         return self.streams
     
@@ -96,18 +96,23 @@ class RTSPHandler:
         self.model = model
         self.RTSPdict = dict
         self.RTSPURL = RTSPURL
+        self.outframes = []
         
         try:
             self.data = VideoLoader(self.RTSPURL, batchSize=1, queueSize=0)
             self.data.start()
+            self.start()
         except:
             import traceback
             traceback.print_exc()
     
     def start(self):
         try:
-            detection = DetectionLoader(model, data, queueSize=0)
-            detection.start()
+            detection = DetectionLoader(self.model, self.data, queueSize=0)
+            self.outframes = detection.start()
         except:
             import traceback
             traceback.print_exc()
+            
+    def getFrames(self):
+        return self.outframes

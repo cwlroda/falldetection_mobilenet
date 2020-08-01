@@ -2,16 +2,16 @@
 <config>
     <Source>
         <RTSPAPI>
-            <RTSPURL>http://multimedia.stargazette.com/webcasts/weather/webcast.mov</RTSPURL>
+            <RTSPURL>/home/htxsns/projects/gettyimages-468620088-640_adpp.mp4</RTSPURL>
         </RTSPAPI>
         <RTSPAPI>
-            <RTSPURL>http://multimedia.stargazette.com/webcasts/weather/webcast.mov</RTSPURL>
+            <RTSPURL>/home/htxsns/projects/gettyimages-468620088-640_adpp.mp4</RTSPURL>
         </RTSPAPI>
     </Source>
     <Output>
-        <FileOutput>
-            <Dir>/output/</Dir>
-            <FileName>{yyyymmdd}_{HHMMSS}_{streamID}_{fallcount}.jpg</FileName>
+        <FileOutput> 
+            <Dir>output</Dir>
+            <FileName>{yyyymmdd}_{HHMMSS}_{streamID}_{algoName}_{fallcount}.jpg</FileName>
         </FileOutput>
     </Output>
 </config>
