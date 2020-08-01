@@ -6,7 +6,7 @@ import cv2
 import time
 
 fitToEllipse = False
-cap = cv2.VideoCapture("videoplayback.mp4")
+cap = cv2.VideoCapture("/home/htxsns/projects/gettyimages-458529130-640_adpp.mp4")
 time.sleep(2)
 
 fgbg = cv2.createBackgroundSubtractorMOG2()

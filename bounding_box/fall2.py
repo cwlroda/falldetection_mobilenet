@@ -123,7 +123,7 @@ while True:
 	# object detection method to aid our tracker
 	if totalFrames % conf["track_object"] == 0:
 		# initialize our new set of object trackers
-        status="Dectecting"
+		status = "Dectecting"
 		trackers = []
 
 		# convert the frame to a blob and pass the blob through the
@@ -173,7 +173,7 @@ while True:
 	else:
 		# loop over the trackers
 		for tracker in trackers:
-            status = "Tracking"
+			status = "Tracking"
 			# update the tracker and grab the updated position
 			tracker.update(rgb)
 			pos = tracker.get_position()
@@ -209,14 +209,15 @@ while True:
 			# us in which direction the object is moving (negative for
 			# 'up' and positive for 'down')
 
-            if int(endX)-int(startX) > int(endY)-int(startY):
-                j+=1
+			if int(endX)-int(startX) > int(endY)-int(startY):
+				j+=1
 
-            if j>10:
-                safety= "Someone may have fallen. Please check."
+			if j>10:
+				safety= "Someone may have fallen. Please check."
                 cv2.rectangle(frame,(startX,startY),(endX,endY),(0,0,255),2)
-            if int(endX)-int(startX) > int(endY)-int(startY):
-                j=0
+			
+   			if int(endX)-int(startX) > int(endY)-int(startY):
+				j=0
 
 	# construct a tuple of information we will be displaying on the
 	# frame

@@ -10,7 +10,7 @@
     </Source>
     <Output>
         <FileOutput> 
-            <Dir>output</Dir>
+            <Dir>output/img</Dir>
             <FileName>{yyyymmdd}_{HHMMSS}_{streamID}_{algoName}_{fallcount}.jpg</FileName>
         </FileOutput>
     </Output>
