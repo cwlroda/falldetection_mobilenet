@@ -12,7 +12,6 @@ class ImageWriter:
         for frame in frames:
             img, fallcount = frame
             filename = self.getFileName(fallcount, ID)
-            print(filename)
             cv2.imwrite(filename, img)
     
     def getFileName(self, fallcount, ID):

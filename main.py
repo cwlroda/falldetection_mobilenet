@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 
 from config.configparser import ConfigParser
 from core.dataloader import DataLoader
@@ -7,6 +8,12 @@ from core.multistreamloader import MultiStreamLoader
 from core.imagewriter import ImageWriter
 
 configFile = "config/config.xml"
+
+parser = argparse.ArgumentParser()
+# parser.add_argument("-m", "--mode", help="Mode 0: Image display with multithreading. Mode 1: Video display without multithreading. (Default=0)", default=0, type=int)
+parser.add_argument("-v", "--video", help="Specify video file, if any, to perform pose estimation (Default=Webcam)", default='webcam', type=str)
+parser.add_argument("-o", "--output_dir", help="Specify output directory. (Default=\{CURR_DIR\}/output/)", default="output", type=str)
+args = parser.parse_args()
 
 try:
     # load detection model
