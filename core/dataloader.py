@@ -3,6 +3,7 @@ import cv2
 import sys
 import time
 import platform
+import logging
 import numpy as np
 from multiprocessing import Queue as pQueue
 from threading import Thread
@@ -13,18 +14,26 @@ try:
 except:
     from openvino.inference_engine import IECore, IEPlugin
 
+logger = logging.getLogger('debug')
+
 class DataLoader:
     def __init__(self):
-        model_xml = "models/train/test/openvino/mobilenet_v2_0.5_224/FP32/frozen-model.xml"
-            
-        model_bin = os.path.splitext(model_xml)[0] + ".bin"
-        net = IECore().read_network(model=model_xml, weights=model_bin)
-        self.input_blob = next(iter(net.inputs))
-        self.exec_net = IECore().load_network(network=net, device_name="CPU")
-        inputs = net.inputs["image"]
+        try:
+            model_xml = "models/train/test/openvino/mobilenet_v2_0.5_224/FP32/frozen-model.xml"
+                
+            model_bin = os.path.splitext(model_xml)[0] + ".bin"
+            net = IECore().read_network(model=model_xml, weights=model_bin)
+            self.input_blob = next(iter(net.inputs))
+            self.exec_net = IECore().load_network(network=net, device_name="CPU")
+            inputs = net.inputs["image"]
 
-        self.h = inputs.shape[2] #368
-        self.w = inputs.shape[3] #432
+            self.h = inputs.shape[2] #368
+            self.w = inputs.shape[3] #432
+            
+            logger.info("Loaded model")
+        except:
+            logger.error("Error loading model", exc_info=True)
+            
 
     def geth(self):
         return self.h

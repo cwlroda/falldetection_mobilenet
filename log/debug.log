@@ -1,0 +1,25 @@
+2020-08-02 20:29:55,279 [INFO]: dataloader.py(__init__:33) >> Loaded model
+2020-08-02 20:29:55,280 [INFO]: main.py(<module>:28) >> Configuration loaded
+2020-08-02 20:29:55,280 [INFO]: main.py(<module>:32) >> Image writer loaded
+2020-08-02 20:29:55,280 [INFO]: multistreamloader.py(loadStreams:29) >> Loading stream: input/gettyimages-468620088-640_adpp.mp4
+2020-08-02 20:29:55,310 [INFO]: videoloader.py(__init__:26) >> Loaded stream: input/gettyimages-468620088-640_adpp.mp4
+2020-08-02 20:29:55,310 [INFO]: multistreamloader.py(__init__:53) >> Reading frames
+2020-08-02 20:29:55,428 [ERROR]: videoloader.py(update:59) >> Reached end of stream
+2020-08-02 20:29:55,430 [INFO]: multistreamloader.py(start:62) >> Performing inference
+2020-08-02 20:29:58,060 [INFO]: detectionloader.py(update:230) >> Fall detected!
+2020-08-02 20:29:58,060 [INFO]: detectionloader.py(update:231) >> Fall count: 1
+2020-08-02 20:29:59,638 [INFO]: multistreamloader.py(start:65) >> Inference done
+2020-08-02 20:29:59,640 [INFO]: multistreamloader.py(loadStreams:36) >> Time elapsed: 4.360140197999499
+2020-08-02 20:29:59,640 [INFO]: multistreamloader.py(loadStreams:39) >> Finished running input/gettyimages-468620088-640_adpp.mp4
+2020-08-02 20:29:59,640 [INFO]: multistreamloader.py(loadStreams:29) >> Loading stream: input/gettyimages-458529130-640_adpp.mp4
+2020-08-02 20:29:59,652 [INFO]: videoloader.py(__init__:26) >> Loaded stream: input/gettyimages-458529130-640_adpp.mp4
+2020-08-02 20:29:59,652 [INFO]: multistreamloader.py(__init__:53) >> Reading frames
+2020-08-02 20:29:59,831 [ERROR]: videoloader.py(update:59) >> Reached end of stream
+2020-08-02 20:29:59,832 [INFO]: multistreamloader.py(start:62) >> Performing inference
+2020-08-02 20:30:02,789 [INFO]: detectionloader.py(update:230) >> Fall detected!
+2020-08-02 20:30:02,789 [INFO]: detectionloader.py(update:231) >> Fall count: 1
+2020-08-02 20:30:08,559 [INFO]: multistreamloader.py(start:65) >> Inference done
+2020-08-02 20:30:08,566 [INFO]: multistreamloader.py(loadStreams:36) >> Time elapsed: 8.925286300999687
+2020-08-02 20:30:08,566 [INFO]: multistreamloader.py(loadStreams:39) >> Finished running input/gettyimages-458529130-640_adpp.mp4
+2020-08-02 20:30:08,576 [INFO]: main.py(<module>:44) >> Frames written to file
+2020-08-02 20:30:08,576 [INFO]: main.py(<module>:51) >> Finished

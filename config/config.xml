@@ -2,10 +2,10 @@
 <config>
     <Source>
         <RTSPAPI>
-            <RTSPURL>http://multimedia.stargazette.com/webcasts/weather/webcast.mov</RTSPURL>
+            <RTSPURL>input/gettyimages-468620088-640_adpp.mp4</RTSPURL>
         </RTSPAPI>
         <RTSPAPI>
-            <RTSPURL>http://multimedia.stargazette.com/webcasts/weather/webcast.mov</RTSPURL>
+            <RTSPURL>input/gettyimages-458529130-640_adpp.mp4</RTSPURL>
         </RTSPAPI>
     </Source>
     <Output>

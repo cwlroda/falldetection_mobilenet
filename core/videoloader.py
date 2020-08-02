@@ -3,6 +3,7 @@ import cv2
 import sys
 import time
 import platform
+import logging
 import numpy as np
 from multiprocessing import Queue as pQueue
 from threading import Thread
@@ -13,13 +14,18 @@ try:
 except:
     from openvino.inference_engine import IECore, IEPlugin
 
+logger = logging.getLogger('debug')
+
 class VideoLoader:
     def __init__(self, path, batchSize=10, queueSize=0):
-        if path == "webcam":
-            self.stream = cv2.VideoCapture(0)
-        else:
-            self.stream = cv2.VideoCapture(path, cv2.CAP_FFMPEG)
-        assert self.stream.isOpened(), 'Cannot capture source'
+        try:
+            if path == "webcam":
+                self.stream = cv2.VideoCapture(0)
+            else:
+                self.stream = cv2.VideoCapture(path, cv2.CAP_FFMPEG)
+            logger.info("Loaded stream: " + path)
+        except:
+            logger.error("Cannot open stream: " + path, exc_info=True)
         
         self.batchSize = batchSize
         self.datalen = int(self.stream.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -50,6 +56,7 @@ class VideoLoader:
                 (grabbed, frame) = self.stream.read()
 
                 if not grabbed:
+                    logging.error("Reached end of stream")
                     return
 
                 self.Q.put(frame)

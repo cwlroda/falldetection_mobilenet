@@ -3,10 +3,13 @@ import cv2
 import sys
 import time
 import platform
+import logging
 import numpy as np
 from multiprocessing import Queue as pQueue
 from threading import Thread
 from queue import Queue, LifoQueue
+
+logger = logging.getLogger('debug')
 
 class DetectionLoader:
     def __init__(self, model, data_loader, queueSize):
@@ -224,6 +227,8 @@ class DetectionLoader:
                     if ((self.new_neck[n] - self.old_neck[n]) > (self.subject_height[n] * self.fall_ratio)) and self.new_neck[n] > 0 and self.old_neck[n] > 0 and self.subject_height[n] > 0:
                         self.fallcount += 1
                         self.outframes.append((self.frameClone, self.fallcount))
+                        logging.info("Fall detected!")
+                        logging.info("Fall count: {0}".format(self.fallcount))
             
                     self.old_neck[n] = self.new_neck[n]
             
