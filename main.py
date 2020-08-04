@@ -8,6 +8,9 @@ from core.dataloader import DataLoader
 from core.multistreamloader import MultiStreamLoader
 from core.imagewriter import ImageWriter
 from core.logger import Logger
+from core.detectionloader import DetectionLoader
+
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
 
 configFile = "config/config.xml"
 
@@ -33,15 +36,19 @@ try:
     
     # generate RTSP streams
     streams = MultiStreamLoader(model, config['RTSPAPI'])
-    streams = streams.loadStreams()
+    streams.generateStreams()
     
-    ID = 0
+    inference = DetectionLoader(model, streams)
+    inference.loadDetectors()
     
-    for stream in streams:
-        outframes = stream.getFrames()
-        imgwriter.writeFrame(outframes, ID)
-        ID += 1
-    logging.info("Frames written to file")
+    while True:
+        outframes = inference.getFrames()
+        imgwriter.writeFrame(outframes)
+        
+        outframes.clear
+        del outframes[:]
+    
+    logging.info("Frames successfully written to file")
     
 except:
     import traceback

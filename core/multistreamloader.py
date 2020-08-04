@@ -6,10 +6,10 @@ import re
 import cv2
 import logging
 import numpy as np
+from threading import Thread
 from queue import Queue, LifoQueue
 
 from core.videoloader import VideoLoader
-from core.detectionloader import DetectionLoader
 
 logger = logging.getLogger('debug')
 
@@ -19,17 +19,20 @@ class MultiStreamLoader:
         self.RTSP_list = RTSP_list
         self.streams = []
         
-    def loadStreams(self):
-        for dict in self.RTSP_list:
+    def generateStreams(self):
+        for RTSPdict in self.RTSP_list:
             ref_RTSPHandler = None
             str_RTSPURL = None
+            ID = None
             
-            if "RTSPURL" in dict:
-                str_RTSPURL = dict["RTSPURL"]
+            if "RTSPURL" in RTSPdict:
+                str_RTSPURL = RTSPdict["RTSPURL"]
+            if "ID" in RTSPdict:
+                ID = RTSPdict["ID"]
             logger.info("Loading stream: " + str_RTSPURL)
             
             t1 = time.perf_counter()
-            ref_RTSPHandler = RTSPHandler(self.model, dict, str_RTSPURL)
+            ref_RTSPHandler = RTSPHandler(self.model, RTSPdict, str_RTSPURL, ID)
             t2 = time.perf_counter()
             
             elapsedTime = t2-t1
@@ -40,35 +43,78 @@ class MultiStreamLoader:
         
         return self.streams
     
+    def getStreams(self):
+        return self.streams
+    
+    def getFrames(self):
+        frames = []
+        for stream in self.streams:
+            frame = stream.getFrame()
+            
+            if frame is not None:
+                frames.append(frame)
+                
+        return frames
 
 class RTSPHandler:
-    def __init__(self, model, dict, RTSPURL=None):
+    def __init__(self, model, dict, RTSPURL=None, ID=None):
         self.model = model
         self.RTSPdict = dict
         self.RTSPURL = RTSPURL
-        self.outframes = []
+        self.ID = ID
+        self.Q = Queue(maxsize=0)
+        self.frame = None
+        self.droppedFrames = 0
         
-        try:
-            self.data = VideoLoader(self.RTSPURL, batchSize=1, queueSize=0)
-            logger.info("Reading frames")
-            self.data.start()
-            self.start()
-        except:
-            import traceback
-            traceback.print_exc()
+        self.online = True
+        self.makeConnection()
     
-    def start(self):
+    def makeConnection(self):
         try:
-            logger.info("Performing inference")
-            detection = DetectionLoader(self.model, self.data, queueSize=0)
-            self.outframes = detection.start()
-            logger.info("Inference done")
+            self.stream = cv2.VideoCapture(self.RTSPURL, cv2.CAP_FFMPEG)
             
+            if self.stream.isOpened():
+                logger.info("Loaded stream: " + self.RTSPURL)
+                self.t = Thread(target=self.update, args=())
+                self.t.daemon = True
+                self.t.start()
+                logger.info("RTSP thread started")
+                
         except:
-            import traceback
-            traceback.print_exc()
-            
-    def getFrames(self):
-        return self.outframes
+            logger.error("Cannot open stream: " + self.RTSPURL, exc_info=True)
+    
+    def reconnect(self):
+        self.stream.release()
+        self.frame = None
+        self.droppedFrames = 0
+        self.stream = cv2.VideoCapture(self.RTSPURL, cv2.CAP_FFMPEG)
+        
+        if self.stream.isOpened():
+            logger.info("Reconnected to stream: " + self.RTSPURL)
+            self.online = True
+            return True
+        else:
+            logger.error("Cannot reconnect to stream: " + self.RTSPURL, exc_info=True)
+            return False
+        
+    def update(self):
+        while True:
+            if self.stream.isOpened():
+                (self.grabbed, self.frame) = self.stream.read()
+
+                if self.grabbed:
+                    self.droppedFrames = 0
+                else:
+                    self.droppedFrames += 1
+                    
+                    if self.droppedFrames > 60:
+                        self.online = False
+                
+            while not self.stream.isOpened() or not self.online:
+                logger.info("Reconnecting to stream: " + self.RTSPURL)
+                self.online = self.reconnect()
+    
+    def getFrame(self):
+        return (self.frame, self.ID)
     
     

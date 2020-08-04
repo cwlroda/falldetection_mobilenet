@@ -12,9 +12,33 @@ from queue import Queue, LifoQueue
 logger = logging.getLogger('debug')
 
 class DetectionLoader:
-    def __init__(self, model, data_loader, queueSize):
+    def __init__(self, model, streams):
         self.model = model
-        self.data_loader = data_loader
+        self.streams = streams
+        self.detectors = []
+        
+    def loadDetectors(self):
+        for stream in self.streams.getStreams():
+            ref_detectors = Detector(self.model, stream)
+            self.detectors.append(ref_detectors)
+            
+        return self.detectors
+    
+    def getFrames(self):
+        frames = []
+        for detector in self.detectors:
+            frame = detector.getFrame()
+            
+            if frame is not None:
+                frames.append(frame)
+        
+        return frames
+            
+
+class Detector:
+    def __init__(self, model, stream):
+        self.model = model
+        self.stream = stream
         self.w = self.model.getw()
         self.h = self.model.geth()
         
@@ -34,8 +58,9 @@ class DetectionLoader:
         
         self.totalframecount = 0
         self.frameClone = None
-        self.Q = Queue(maxsize=0)
-        self.outframes = []
+        self.outframes = Queue(maxsize=0)
+        
+        self.infer()
         
     def getKeypoints(self):
         mapSmooth = cv2.GaussianBlur(self.probMap, (3, 3), 0, 0)
@@ -143,104 +168,100 @@ class DetectionLoader:
                         personwiseKeypoints = np.vstack([personwiseKeypoints, row])
                         
         return personwiseKeypoints
-
-    def start(self):
-        self.t = Thread(target=self.update(), args=(self.data_loader))
+    
+    def infer(self):
+        self.t = Thread(target=self.update, args=())
         self.t.daemon = True
         self.t.start()
-        self.t.join()
-
-        return self.outframes
-    
+        
     def update(self):
         while True:
-            frame = self.data_loader.getFrame()
-            
-            if frame is None:
-                return
-            
-            colw = frame.shape[1]
-            colh = frame.shape[0]
-            new_w = int(colw * min(self.w/colw, self.h/colh))
-            new_h = int(colh * min(self.w/colw, self.h/colh))
-            
-            resized_image = cv2.resize(frame, (self.w, new_h), interpolation = cv2.INTER_NEAREST)
-            canvas = np.full((self.h, self.w, 3), 128)
-            canvas[(self.h - new_h)//2:(self.h - new_h)//2 + new_h,(self.w - new_w)//2:(self.w - new_w)//2 + new_w, :] = resized_image
+            (frame, self.ID) = self.stream.getFrame()
 
-            prepimg = canvas
-            prepimg = prepimg[np.newaxis, :, :, :]     # Batch size axis add
-            prepimg = prepimg.transpose((0, 3, 1, 2))  # NHWC to NCHW, (1, 3, 368, 432)
-            self.outputs = self.model.get_execnet().infer(inputs={self.model.get_inputblob(): prepimg})["Openpose/concat_stage7"]
-            
-            self.detected_keypoints = []
-            self.keypoints_list = np.zeros((0, 3))
-            keypoint_id = 0
-            
-            for part in range(self.nPoints):
-                self.probMap = self.outputs[0, part, :, :]
-                self.probMap = cv2.resize(self.probMap, (canvas.shape[1], canvas.shape[0])) # (432, 368)
-                keypoints = self.getKeypoints()
-                keypoints_with_id = []
-
-                for i in range(len(keypoints)):
-                    keypoints_with_id.append(keypoints[i] + (keypoint_id,))
-                    self.keypoints_list = np.vstack([self.keypoints_list, keypoints[i]])
-                    keypoint_id += 1
-            
-                self.detected_keypoints.append(keypoints_with_id)
+            if frame is not None:
+                colw = frame.shape[1]
+                colh = frame.shape[0]
+                new_w = int(colw * min(self.w/colw, self.h/colh))
+                new_h = int(colh * min(self.w/colw, self.h/colh))
                 
-            self.frameClone = np.uint8(canvas.copy())
-            for i in range(self.nPoints):
-                for j in range(len(self.detected_keypoints[i])):
-                    cv2.circle(self.frameClone, self.detected_keypoints[i][j][0:2], 5, self.colors[i], -1, cv2.LINE_AA)
+                resized_image = cv2.resize(frame, (self.w, new_h), interpolation = cv2.INTER_NEAREST)
+                canvas = np.full((self.h, self.w, 3), 128)
+                canvas[(self.h - new_h)//2:(self.h - new_h)//2 + new_h,(self.w - new_w)//2:(self.w - new_w)//2 + new_w, :] = resized_image
 
-            self.valid_pairs, self.invalid_pairs = self.getValidPairs()
-            personwiseKeypoints = self.getPersonwiseKeypoints()
-            
-            # Resets points if no one is detected in the frame to prevent false positives between frames
-            if range(len(personwiseKeypoints)) == 0:
-                old_neck = -1*np.ones(20, dtype=int)
-                new_neck = -1*np.ones(20, dtype=int)
-                subject_height = -1*np.ones(20, dtype=int)
+                prepimg = canvas
+                prepimg = prepimg[np.newaxis, :, :, :]     # Batch size axis add
+                prepimg = prepimg.transpose((0, 3, 1, 2))  # NHWC to NCHW, (1, 3, 368, 432)
+                self.outputs = self.model.get_execnet().infer(inputs={self.model.get_inputblob(): prepimg})["Openpose/concat_stage7"]
+                
+                self.detected_keypoints = []
+                self.keypoints_list = np.zeros((0, 3))
+                keypoint_id = 0
+                
+                for part in range(self.nPoints):
+                    self.probMap = self.outputs[0, part, :, :]
+                    self.probMap = cv2.resize(self.probMap, (canvas.shape[1], canvas.shape[0])) # (432, 368)
+                    keypoints = self.getKeypoints()
+                    keypoints_with_id = []
 
-            # Fall algorithm
-            # TO-DO: Optimise loops (multithreading?)
-            for n in range(len(personwiseKeypoints)):
-                for i in range(18):
-                    index = personwiseKeypoints[n][np.array(self.POSE_PAIRS[i])]
+                    for i in range(len(keypoints)):
+                        keypoints_with_id.append(keypoints[i] + (keypoint_id,))
+                        self.keypoints_list = np.vstack([self.keypoints_list, keypoints[i]])
+                        keypoint_id += 1
+                
+                    self.detected_keypoints.append(keypoints_with_id)
                     
-                    if -1 in index:
-                        continue
-                    
-                    B = np.int32(self.keypoints_list[index.astype(int), 0])
-                    A = np.int32(self.keypoints_list[index.astype(int), 1])
-                    cv2.line(self.frameClone, (B[0], A[0]), (B[1], A[1]), self.colors[i], 3, cv2.LINE_AA)
-                    
-                    # Detect falling from neck points
-                    if i == 0:
-                        self.new_neck[n] = A[0]  
-                    if i == 8:
-                        self.subject_height[n] = A[0] - self.new_neck[n]
-                    
-                if self.totalframecount != 0 and self.totalframecount % 10 == 0:
-                    if ((self.new_neck[n] - self.old_neck[n]) > (self.subject_height[n] * self.fall_ratio)) and self.new_neck[n] > 0 and self.old_neck[n] > 0 and self.subject_height[n] > 0:
-                        self.fallcount += 1
-                        self.outframes.append((self.frameClone, self.fallcount))
-                        logging.info("Fall detected!")
-                        logging.info("Fall count: {0}".format(self.fallcount))
-            
-                    self.old_neck[n] = self.new_neck[n]
-            
-            if self.fallcount != 0:
-                cv2.putText(self.frameClone, "FALL COUNT: {0}".format(self.fallcount), (432-170,35), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (38,0,255), 1, cv2.LINE_AA)
-            
-            self.Q.put(self.frameClone)
-            self.totalframecount += 1
+                self.frameClone = np.uint8(canvas.copy())
+                """ for i in range(self.nPoints):
+                    for j in range(len(self.detected_keypoints[i])):
+                        cv2.circle(self.frameClone, self.detected_keypoints[i][j][0:2], 5, self.colors[i], -1, cv2.LINE_AA)
+ """
+                self.valid_pairs, self.invalid_pairs = self.getValidPairs()
+                personwiseKeypoints = self.getPersonwiseKeypoints()
+                
+                # Resets points if no one is detected in the frame to prevent false positives between frames
+                if range(len(personwiseKeypoints)) == 0:
+                    old_neck = -1*np.ones(20, dtype=int)
+                    new_neck = -1*np.ones(20, dtype=int)
+                    subject_height = -1*np.ones(20, dtype=int)
+
+                # Fall algorithm
+                # TO-DO: Optimise loops (multithreading?)
+                for n in range(len(personwiseKeypoints)):
+                    for i in range(18):
+                        index = personwiseKeypoints[n][np.array(self.POSE_PAIRS[i])]
+                        
+                        if -1 in index:
+                            continue
+                        
+                        B = np.int32(self.keypoints_list[index.astype(int), 0])
+                        A = np.int32(self.keypoints_list[index.astype(int), 1])
+                        # cv2.line(self.frameClone, (B[0], A[0]), (B[1], A[1]), self.colors[i], 3, cv2.LINE_AA)
+                        
+                        # Detect falling from neck points
+                        if i == 0:
+                            self.new_neck[n] = A[0]  
+                        if i == 8:
+                            self.subject_height[n] = A[0] - self.new_neck[n]
+                        
+                    if self.totalframecount != 0 and self.totalframecount % 10 == 0:
+                        if ((self.new_neck[n] - self.old_neck[n]) > (self.subject_height[n] * self.fall_ratio)) and self.new_neck[n] > 0 and self.old_neck[n] > 0 and self.subject_height[n] > 0:
+                            self.fallcount += 1
+                            logging.info("Fall detected!")
+                            logging.info("Fall count: {0}".format(self.fallcount))
+                            # self.outframes.put((self.frameClone, self.ID, self.fallcount))
+                            
+                        self.old_neck[n] = self.new_neck[n]
+                
+                if self.fallcount != 0:
+                    cv2.putText(self.frameClone, "FALL COUNT: {0}".format(self.fallcount), (432-170,35), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (38,0,255), 1, cv2.LINE_AA)
+
+                # self.outframes.put((self.frameClone, self.ID, self.totalframecount))
+                self.totalframecount += 1
         
-    def getFrame(self):
-        # return next frame in the queue
-        if self.Q.empty():
+    def getFrame(self):    
+        return (self.frameClone, self.ID, self.totalframecount)
+    
+        if self.outframes.empty():
             return None
         else:
-            return self.Q.get()
+            return self.outframes.get()

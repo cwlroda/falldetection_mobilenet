@@ -2,10 +2,8 @@
 <config>
     <Source>
         <RTSPAPI>
-            <RTSPURL>input/gettyimages-468620088-640_adpp.mp4</RTSPURL>
-        </RTSPAPI>
-        <RTSPAPI>
-            <RTSPURL>input/gettyimages-458529130-640_adpp.mp4</RTSPURL>
+            <ID>osaka</ID>
+            <RTSPURL>rtsp://:7089/osaka</RTSPURL>
         </RTSPAPI>
     </Source>
     <Output>

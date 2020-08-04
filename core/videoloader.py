@@ -17,16 +17,8 @@ except:
 logger = logging.getLogger('debug')
 
 class VideoLoader:
-    def __init__(self, path, batchSize=10, queueSize=0):
-        try:
-            if path == "webcam":
-                self.stream = cv2.VideoCapture(0)
-            else:
-                self.stream = cv2.VideoCapture(path, cv2.CAP_FFMPEG)
-            logger.info("Loaded stream: " + path)
-        except:
-            logger.error("Cannot open stream: " + path, exc_info=True)
-        
+    def __init__(self, stream, batchSize=10, queueSize=0):        
+        self.stream = stream
         self.batchSize = batchSize
         self.datalen = int(self.stream.get(cv2.CAP_PROP_FRAME_COUNT))
         leftover = 0
@@ -38,6 +30,7 @@ class VideoLoader:
             self.num_batches = self.datalen // batchSize + leftover
         
         self.Q = Queue(maxsize=queueSize)
+        self.online = True
         
     def start(self):
         self.t = Thread(target=self.update(), args=())
@@ -45,21 +38,27 @@ class VideoLoader:
         self.t.start()
         self.t.join()
         
-        self.stream.release()
         return self
     
     def update(self):
-        for i in range(self.num_batches):
-            grabbed = True
-            
-            while grabbed:
-                (grabbed, frame) = self.stream.read()
+        for i in range(self.num_batches):            
+            while True:
+                (self.grabbed, frame) = self.stream.read()
 
-                if not grabbed:
-                    logging.error("Reached end of stream")
+                if self.grabbed:
+                    self.droppedFrames = 0
+                else:
+                    self.droppedFrames += 1
+                    
+                    if self.droppedFrames > 60:
+                        self.online = False
+                
+                if not self.stream.isOpened() or not self.online:
+                    self.online = False
                     return
 
                 self.Q.put(frame)
+                # time.sleep(0.5)
 
     def getFrame(self):
         # return next frame in the queue
@@ -67,5 +66,6 @@ class VideoLoader:
             return None
         else:
             return self.Q.get()
-        
-        
+
+    def isOnline(self):
+        return self.online

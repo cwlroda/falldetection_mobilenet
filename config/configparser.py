@@ -9,7 +9,7 @@ class ConfigParser:
     def getConfig(self):
         self.extractConfig("config.Source.RTSPAPI")
         self.extractConfig("config.Output.FileOutput")
-        
+
         return self.config
     
     def getDictValue(self, dict, keyName):
