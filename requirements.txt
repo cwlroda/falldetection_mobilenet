@@ -58,7 +58,7 @@ pycocotools==2.0.1
 pycodestyle==2.6.0
 pycparser==2.20
 pyflakes==2.2.0
-Pygments==2.6.1
+Pygments==2.7.4
 pynput==1.6.8
 pyparsing==3.0.0a2
 PySocks==1.7.1
