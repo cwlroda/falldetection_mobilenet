@@ -38,7 +38,7 @@ numba==0.50.1
 numpy==1.19.0
 oauthlib==3.1.0
 olefile==0.46
-opencv-python==4.2.0.34
+opencv-python==4.8.1.78.34
 packaging==20.4
 pafy==0.5.5
 pandas==1.0.5
